@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Link API gốc (Bạn cần đảm bảo link này hoạt động)
-const API_URL = "https://ongmattroiahihihiet-produc.railway.app/api/taixiu/history";  
+const API_URL = "https://ongmattroiahiihikiet-production.up.railway.app/api/taixiu/history";  
 
 // Caching setup
 const myCache = new NodeCache({ stdTTL: 15, checkperiod: 5 }); 
@@ -82,3 +82,4 @@ app.listen(PORT, () => {
   console.log(`✅ Server chạy tại http://localhost:${PORT}`);
 });
       
+
