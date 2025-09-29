@@ -1,18 +1,18 @@
-Import express from "express";
+const express = require("express"); // SỬA LỖI Ở ĐÂY
+const fetch = require("node-fetch"); // THÊM DÒNG NÀY NẾU BẠN CHƯA CÓ FETCH GỐC TRONG MÔI TRƯỜNG NODE.JS CỦA BẠN
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Link API gốc (đã thay đổi theo link trong ảnh chụp màn hình)
+// Link API gốc (theo ảnh chụp màn hình)
 const API_URL = "https://ongmattroiahihihiet-produc.railway.app/api/taixiu/history";  
 
 app.get("/api/taixiu", async (req, res) => {
   try {
+    // Đảm bảo bạn có sẵn 'fetch' hoặc đã cài 'node-fetch'
     const response = await fetch(API_URL);
     
-    // Đảm bảo response.ok là bước cực kỳ quan trọng
     if (!response.ok) {
-        // Có thể log thêm response.status để dễ debug
         console.error(`Lỗi gọi API gốc: ${response.status} ${response.statusText}`);
         throw new Error("Không thể gọi API gốc");
     }
@@ -20,7 +20,7 @@ app.get("/api/taixiu", async (req, res) => {
     const data = await response.json();
 
     if (!Array.isArray(data) || data.length === 0) {
-      return res.json({ error: "Không có dữ liệu" });
+      return res.status(200).json({ error: "Không có dữ liệu" });
     }
 
     const latest = data[0]; // phiên mới nhất
@@ -34,12 +34,10 @@ app.get("/api/taixiu", async (req, res) => {
       Ket_qua: latest.result
     });
   } catch (error) {
-    // Trả về lỗi 500 nếu là lỗi server (Internal Server Error)
     res.status(500).json({ error: error.message });
   }
 });
 
 app.listen(PORT, () => {
-  // Dòng này chỉ chạy khi chạy local. Khi deploy, nó vẫn ổn.
   console.log(`✅ Server chạy tại http://localhost:${PORT}`);
 });
