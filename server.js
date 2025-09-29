@@ -1,4 +1,4 @@
-// server.js - Phiên bản ổn định với Caching TTL 15 giây
+// server.js - Phiên bản cuối cùng: Không có setInterval, dùng TTL 15s
 
 const express = require("express");
 const fetch = require("node-fetch"); 
@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 3000;
 // URL đã sửa
 const API_URL = "https://ongmattroiahiihikiet-production.up.railway.app/api/taixiu/history";  
 
+// Caching setup: TTL 15 giây (Cache hết hạn sau 15 giây)
 const myCache = new NodeCache({ stdTTL: 15, checkperiod: 5 }); 
 const CACHE_KEY = 'latest_taixiu_data';
 
@@ -17,6 +18,7 @@ const CACHE_KEY = 'latest_taixiu_data';
 app.get("/api/taixiu", async (req, res) => {
   let latest;
 
+  // 1. THỬ LẤY DỮ LIỆU TỪ CACHE
   const cachedData = myCache.get(CACHE_KEY);
   if (cachedData) {
       latest = cachedData[0];
@@ -30,14 +32,17 @@ app.get("/api/taixiu", async (req, res) => {
       });
   }
 
+  // 2. NẾU KHÔNG CÓ CACHE (HOẶC HẾT HẠN), GỌI API GỐC
   try {
     const response = await fetch(API_URL, {
         headers: {
+            // Giả lập trình duyệt
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36'
         },
     });
 
     if (!response.ok) {
+        // Xử lý lỗi 404/500
         throw new Error(`Lỗi gọi API gốc: ${response.status} ${response.statusText} tại ${API_URL}`);
     }
 
@@ -47,6 +52,7 @@ app.get("/api/taixiu", async (req, res) => {
       return res.status(200).json({ error: "Không có dữ liệu hợp lệ từ API gốc" });
     }
 
+    // 3. LƯU DỮ LIỆU VÀ TRẢ VỀ KẾT QUẢ
     myCache.set(CACHE_KEY, data);
     latest = data[0]; 
     res.json({
@@ -68,4 +74,3 @@ app.get("/api/taixiu", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server chạy tại http://localhost:${PORT}`);
 });
-        
