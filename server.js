@@ -1,77 +1,42 @@
-// server.js - Phiên bản ổn định và cuối cùng (Không có background refresh 10p)
-
-const express = require("express");
-const fetch = require("node-fetch"); // <-- Cần phải có trong package.json
-const NodeCache = require("node-cache"); // <-- Cần phải có trong package.json
+import express from "express";
+import fetch from "node-fetch";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// URL API đã được sửa
-const API_URL = "https://ongmattroiahiihikiet-production.up.railway.app/api/taixiu/history";  
+// 🔗 Firebase Realtime Database URL (đổi nếu bạn dùng DB khác)
+const FIREBASE_URL = "https://gb-8e4c1-default-rtdb.firebaseio.com/taixiu_sessions/current.json";
 
-// Caching setup: TTL 15 giây. Cache tự động hết hạn sau 15s
-const myCache = new NodeCache({ stdTTL: 15, checkperiod: 5 }); 
-const CACHE_KEY = 'latest_taixiu_data';
-
-// --- API Endpoint ---
-app.get("/api/taixiu", async (req, res) => {
-  let latest;
-
-  // 1. THỬ LẤY DỮ LIỆU TỪ CACHE (Nhanh nhất)
-  const cachedData = myCache.get(CACHE_KEY);
-  if (cachedData) {
-      latest = cachedData[0];
-      return res.json({
-        "Phien": latest.session,
-        "Xuc_xac_1": latest.dice[0],
-        "Xuc_xac_2": latest.dice[1],
-        "Xuc_xac_3": latest.dice[2],
-        "Tong": latest.total,
-        "Ket_qua": latest.result
-      });
-  }
-
-  // 2. NẾU KHÔNG CÓ CACHE (HẾT HẠN), GỌI API GỐC
+// 🚀 Route duy nhất: /history
+app.get("/history", async (req, res) => {
   try {
-    const response = await fetch(API_URL, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36'
-        },
-    });
+    const response = await fetch(FIREBASE_URL);
+    if (!response.ok) throw new Error("Lỗi khi truy cập Firebase");
 
-    if (!response.ok) {
-        // Xử lý lỗi 404/500 từ API gốc
-        throw new Error(`Lỗi gọi API gốc: ${response.status} ${response.statusText} tại ${API_URL}`);
-    }
+    const data = await response.json();
+    if (!data) return res.status(404).json({ message: "Không có phiên nào trong lịch sử." });
 
-    const data = await response.json(); 
+    // Chuẩn hóa dữ liệu về đúng định dạng bạn muốn
+    const formatted = {
+      Phien: data.Phien?.toString() || "",
+      Xuc_xac_1: data.xuc_xac_1 || data.Xuc_xac_1 || 0,
+      Xuc_xac_2: data.xuc_xac_2 || data.Xuc_xac_2 || 0,
+      Xuc_xac_3: data.xuc_xac_3 || data.Xuc_xac_3 || 0,
+      Tong: data.tong || data.Tong || 0,
+      Ket_qua: data.ket_qua || data.Ket_qua || "",
+      Thoi_gian: data.thoi_gian || data.Thoi_gian || "",
+    };
 
-    if (!Array.isArray(data) || data.length === 0) {
-      return res.status(200).json({ error: "Không có dữ liệu hợp lệ từ API gốc" });
-    }
-
-    // 3. LƯU DỮ LIỆU VÀO CACHE và trả về
-    myCache.set(CACHE_KEY, data);
-    
-    latest = data[0]; 
-    res.json({
-      "Phien": latest.session,
-      "Xuc_xac_1": latest.dice[0],
-      "Xuc_xac_2": latest.dice[1],
-      "Xuc_xac_3": latest.dice[2],
-      "Tong": latest.total,
-      "Ket_qua": latest.result
-    });
-
-  } catch (error) {
-    console.error(`❌ Lỗi gọi API: ${error.message}`);
-    res.status(500).json({ error: error.message });
+    res.json(formatted);
+  } catch (err) {
+    console.error("❌ Lỗi khi lấy dữ liệu:", err);
+    res.status(500).json({ error: "Không thể tải dữ liệu từ Firebase." });
   }
 });
 
-// --- Server Startup ---
-app.listen(PORT, () => {
-  console.log(`✅ Server chạy tại http://localhost:${PORT}`);
+// Trang chủ (tuỳ chọn, chỉ để test)
+app.get("/", (req, res) => {
+  res.send(`<h3>Server đang chạy! Dùng đường dẫn <a href="/history">/history</a> để xem dữ liệu.</h3>`);
 });
-        
+
+app.listen(PORT, () => console.log(`✅ Server đang chạy tại cổng ${PORT}`));
