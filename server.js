@@ -4,62 +4,51 @@ const axios = require("axios");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// API gốc
+// 🔗 API gốc của bạn (Render cũ)
 const API_URL = "https://sunwinsaygex.onrender.com/api/taixiu/history";
 
-// Lưu phiên mới nhất
+// Biến lưu phiên mới nhất
 let latestResult = null;
 
-// Thời gian giữa các lần gọi API (3 giây)
+// Thời gian chờ giữa mỗi lần gọi API (ms)
 const FETCH_INTERVAL_MS = 3000;
 
-// Hàm lấy kết quả
+// Hàm lấy dữ liệu từ API
 async function fetchResult() {
   try {
     const response = await axios.get(API_URL);
-    const json = response.data;
+    const data = response.data;
 
-    // Kiểm tra dữ liệu hợp lệ
-    if (json.state === 1 && json.data && json.data.OpenCode) {
-      const openCodeStr = json.data.OpenCode;
-      const openCode = openCodeStr.split(",").map(Number);
+    // ✅ Kiểm tra dữ liệu hợp lệ và có ít nhất 1 phần tử
+    if (Array.isArray(data) && data.length > 0) {
+      const newest = data[0]; // Lấy phiên mới nhất
 
-      if (openCode.length !== 3 || openCode.some(isNaN)) {
-        console.error("❌ Lỗi dữ liệu OpenCode:", openCodeStr);
-        return;
-      }
-
-      const tong = openCode.reduce((a, b) => a + b, 0);
-      const ketQua = tong >= 11 ? "Tài" : "Xỉu";
-
+      // Chuẩn hóa dữ liệu
       latestResult = {
-        phien: json.data.Expect,
-        xuc_xac_1: openCode[0],
-        xuc_xac_2: openCode[1],
-        xuc_xac_3: openCode[2],
-        tong,
-        ket_qua: ketQua,
-        open_time: json.data.OpenTime,
+        phien: newest.phien,
+        xuc_xac_1: newest.xuc_xac_1,
+        xuc_xac_2: newest.xuc_xac_2,
+        xuc_xac_3: newest.xuc_xac_3,
+        tong: newest.tong,
+        ket_qua: newest.ket_qua,
       };
 
-      console.log(`🎲 Phiên ${latestResult.phien} → ${latestResult.ket_qua}`);
+      console.log(`🎲 Đã cập nhật phiên ${latestResult.phien} → ${latestResult.ket_qua}`);
+    } else {
+      console.warn("⚠️ API trả về dữ liệu rỗng hoặc không đúng định dạng.");
     }
   } catch (err) {
-    console.error(
-      "❌ Lỗi fetch API:",
-      err.message,
-      err.response ? `(HTTP ${err.response.status})` : ""
-    );
+    console.error("❌ Lỗi khi fetch API:", err.message);
   } finally {
-    // Gọi lại sau mỗi FETCH_INTERVAL_MS mili giây
+    // Lặp lại sau mỗi FETCH_INTERVAL_MS
     setTimeout(fetchResult, FETCH_INTERVAL_MS);
   }
 }
 
-// Bắt đầu gọi API
+// Chạy lần đầu
 fetchResult();
 
-// --- Endpoint trả dữ liệu phiên mới nhất ---
+// --- API trả dữ liệu phiên mới nhất ---
 app.get("/api/taixiu/ws", (req, res) => {
   if (!latestResult) {
     return res.status(503).json({
@@ -69,14 +58,14 @@ app.get("/api/taixiu/ws", (req, res) => {
   res.json(latestResult);
 });
 
-// Endpoint mặc định
+// Trang chủ test nhanh
 app.get("/", (req, res) => {
   res.send(
-    'API HTTP Tài Xỉu đang chạy.<br>👉 Truy cập <a href="/api/taixiu/ws">/api/taixiu/ws</a> để xem phiên mới nhất.'
+    '✅ API đang chạy.<br>Truy cập <a href="/api/taixiu/ws">/api/taixiu/ws</a> để xem phiên mới nhất.'
   );
 });
 
-// Khởi động server
+// Khởi chạy server
 app.listen(PORT, () => {
   console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
 });
