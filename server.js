@@ -14,30 +14,8 @@ let rikResults = [];
 let rikCurrentSession = null;
 let rikWS = null;
 let reconnectTimeout = null;
-
-// =============== PATCH FETCH ĐỂ BẮT REQUEST ==================
-const origFetch = fetch;
-global.fetch = async (...args) => {
-  const [url, options] = args;
-  const method = (options && options.method) || "GET";
-  const start = Date.now();
-  try {
-    const res = await origFetch(...args);
-    const text = await res.clone().text();
-    console.log("📡 FETCH:", {
-      url,
-      method,
-      status: res.status,
-      duration: Date.now() - start + "ms",
-      request: options || {},
-      responseSnippet: text.slice(0, 200) // chỉ hiển thị 200 ký tự đầu
-    });
-    return res;
-  } catch (err) {
-    console.error("❌ FETCH ERROR:", url, err.message);
-    throw err;
-  }
-};
+let isAuthenticated = false;
+let isConnectionHealthy = false;
 
 // ==================== LẤY TOKEN TỪ FIREBASE ====================
 async function getAuthData() {
@@ -54,8 +32,6 @@ async function getAuthData() {
     const signature = authObject.signature;
     const infoObject = JSON.parse(infoString);
     const wsToken = infoObject.wsToken;
-
-    console.log("✅ Token lấy thành công:", wsToken.slice(0, 10) + "...");
 
     return { wsToken, username1, username2, info: infoString, signature };
   } catch (err) {
@@ -78,7 +54,7 @@ function loadHistory() {
 
 function saveHistory() {
   try {
-    fs.writeFileSync(HISTORY_FILE, JSON.stringify(rikResults, null, 2), "utf8");
+    fs.writeFileSync(HISTORY_FILE, JSON.stringify(rikResults), "utf8");
   } catch (err) {
     console.error("Lỗi lưu lịch sử:", err);
   }
@@ -99,7 +75,7 @@ async function connectWebSocket() {
   rikWS = new WebSocket(websocketUrl);
 
   rikWS.on("open", () => {
-    console.log("✅ Đã kết nối WebSocket:", websocketUrl);
+    console.log("✅ Đã kết nối WebSocket");
     const authPayload = [
       1,
       "MiniGame",
@@ -108,40 +84,28 @@ async function connectWebSocket() {
       { info: authData.info, pid: 5, signature: authData.signature, subi: true },
     ];
     rikWS.send(JSON.stringify(authPayload));
-    console.log("📤 WS SEND:", JSON.stringify(authPayload));
   });
-
-  // === PATCH GỬI DỮ LIỆU WEBSOCKET ===
-  const origSend = rikWS.send;
-  rikWS.send = function (data) {
-    console.log("📤 WS SEND:", data);
-    return origSend.call(this, data);
-  };
 
   rikWS.on("message", (data) => {
     try {
-      console.log("📥 WS RECV:", data.toString().slice(0, 300)); // log 300 ký tự đầu
       const json = JSON.parse(data.toString());
-
-      // Xử lý xác thực
       if (Array.isArray(json) && json[0] === 1 && json[1] === true) {
-        console.log("✅ Xác thực thành công WS");
+        isAuthenticated = true;
+        console.log("✅ Xác thực thành công");
         return;
       }
 
-      // Phiên mới
       if (Array.isArray(json) && json[1]?.cmd === 1008 && json[1]?.sid) {
         rikCurrentSession = json[1].sid;
       }
 
-      // Kết quả xúc xắc
       if (
         Array.isArray(json) &&
         (json[1]?.cmd === 1003 || json[1]?.cmd === 1004) &&
         json[1]?.d1 !== undefined
       ) {
         const res = json[1];
-        if (!rikResults[0] || rikResults[0].Phien !== rikCurrentSession) {
+        if (!rikResults[0] || rikResults[0].sid !== rikCurrentSession) {
           const now = new Date().toLocaleString("vi-VN", { hour12: false });
           const payload = {
             Phien: rikCurrentSession,
@@ -164,12 +128,12 @@ async function connectWebSocket() {
   });
 
   rikWS.on("close", () => {
-    console.log("🔌 Mất kết nối WS. Tự động reconnect sau 5s...");
+    console.log("🔌 Mất kết nối. Tự động reconnect sau 5s...");
     reconnectTimeout = setTimeout(connectWebSocket, 5000);
   });
 
   rikWS.on("error", (err) => {
-    console.error("⚠️ WebSocket lỗi:", err.message);
+    console.error("WebSocket lỗi:", err.message);
     rikWS.terminate();
   });
 }
