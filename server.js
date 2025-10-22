@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 🔗 API nguồn của bạn
-const API_URL = "https://sunwinsaygex.onrender.com/api/taixiu/history";
+const API_URL = "https://sunwinsaygex-ew87.onrender.com/api/taixiu/history";
 
 // Biến lưu kết quả mới nhất
 let latestResult = null;
@@ -69,3 +69,4 @@ app.get("/api/taixiu/ws", (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server đang chạy tại http://localhost:${PORT}`);
 });
+
