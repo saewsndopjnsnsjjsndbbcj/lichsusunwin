@@ -4,48 +4,52 @@ const axios = require("axios");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔗 API nguồn của bạn
-const API_URL = "https://sunwinsaygex-ew87.onrender.com/api/taixiu/history";
+// 🔗 API gốc (nguồn thật)
+const API_URL = "http://139.59.120.117:3001";
 
 // Biến lưu kết quả mới nhất
 let latestResult = null;
 
-// Thời gian giữa mỗi lần gọi API (ms)
+// Thời gian cập nhật (ms)
 const FETCH_INTERVAL_MS = 3000;
 
-// 🔁 Hàm lấy dữ liệu từ API
+// 🔁 Hàm lấy dữ liệu từ API gốc
 async function fetchResult() {
   try {
     const response = await axios.get(API_URL);
     const data = response.data;
 
-    if (Array.isArray(data) && data.length > 0) {
-      const newest = data[0]; // Lấy phiên mới nhất
-
+    // ✅ Nếu API gốc đã trả đúng form thì chỉ cần giữ nguyên
+    if (data && data.Phien && data.Ket_qua) {
+      latestResult = data;
+      console.log(`🎯 Nhận phiên ${data.Phien} → ${data.Ket_qua}`);
+    } else if (Array.isArray(data) && data.length > 0) {
+      // ✅ Nếu API gốc trả dạng mảng thì lấy phần tử đầu và convert
+      const newest = data[0];
       latestResult = {
-        phien: newest.phien,
-        xuc_xac_1: newest.xuc_xac_1,
-        xuc_xac_2: newest.xuc_xac_2,
-        xuc_xac_3: newest.xuc_xac_3,
-        tong: newest.tong,
-        ket_qua: newest.ket_qua,
+        Phien: newest.phien,
+        Xuc_xac_1: newest.xuc_xac_1,
+        Xuc_xac_2: newest.xuc_xac_2,
+        Xuc_xac_3: newest.xuc_xac_3,
+        Tong: newest.tong,
+        Ket_qua: newest.ket_qua,
+        id: "@mrtinhios",
       };
-
-      console.log(`🎲 Cập nhật phiên ${latestResult.phien} → ${latestResult.ket_qua}`);
+      console.log(`🎲 Cập nhật phiên ${latestResult.Phien} → ${latestResult.Ket_qua}`);
     } else {
-      console.warn("⚠️ API trả về dữ liệu rỗng hoặc không đúng định dạng.");
+      console.warn("⚠️ API gốc trả về dữ liệu rỗng hoặc sai định dạng.");
     }
   } catch (err) {
-    console.error("❌ Lỗi khi fetch API:", err.message);
+    console.error("❌ Lỗi fetch API gốc:", err.message);
   } finally {
     setTimeout(fetchResult, FETCH_INTERVAL_MS);
   }
 }
 
-// Chạy lần đầu
+// Gọi lần đầu
 fetchResult();
 
-// 🟢 Trang chủ — hiển thị luôn dữ liệu JSON mới nhất
+// 🟢 Route chính: trả form JSON lịch sử
 app.get("/", (req, res) => {
   if (!latestResult) {
     return res.status(503).json({
@@ -55,18 +59,7 @@ app.get("/", (req, res) => {
   res.json(latestResult);
 });
 
-// 🔵 API riêng nếu muốn test hoặc dùng ở nơi khác
-app.get("/api/taixiu/ws", (req, res) => {
-  if (!latestResult) {
-    return res.status(503).json({
-      error: "Dữ liệu chưa được tải lần đầu. Vui lòng thử lại sau vài giây.",
-    });
-  }
-  res.json(latestResult);
-});
-
-// 🚀 Khởi động server
+// 🚀 Chạy server trung gian
 app.listen(PORT, () => {
-  console.log(`✅ Server đang chạy tại http://localhost:${PORT}`);
+  console.log(`✅ Server trung gian đang chạy tại http://localhost:${PORT}`);
 });
-
