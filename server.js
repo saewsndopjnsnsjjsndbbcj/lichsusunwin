@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // API lịch sử gốc
-const API_HISTORY = "https://sunapi-hknam.onrender.com/api/his";
+const API_HISTORY = "http://180.93.52.196:3001/api/his";
 
 // 🔹 Trả về phiên mới nhất
 app.get("/latest", async (req, res) => {
@@ -42,6 +42,7 @@ app.get("/latest", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`API phiên mới nhất đang chạy tại http://localhost:${PORT}`);
 });
+
 
 
 
